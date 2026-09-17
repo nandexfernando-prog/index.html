@@ -1,0 +1,1712 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presenças – Aulas</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- QRCode.js CDN para geração de QR Codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <!-- Google Font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        dance: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#1e1b4b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Custom CSS for Animations and Print Styles -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        /* Continuous subtle pulsing effect for dance theme icon */
+        @keyframes floatPulse {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-4px) scale(1.03); }
+        }
+        .dance-icon-animated {
+            animation: floatPulse 3s ease-in-out infinite;
+        }
+
+        /* Estilos específicos de impressão para o Cartaz A4 */
+        @media print {
+            /* Esconder elementos de navegação e outras vistas */
+            header, footer, .no-print, #view-register, #view-admin, #view-setup, #toast-container, #modal-delete, #modal-delete-all {
+                display: none !important;
+            }
+
+            body, main, #view-poster {
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+
+            #poster-print-area {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                visibility: visible !important;
+                position: static !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-height: 90vh !important;
+                padding: 1.5cm !important;
+                margin: 0 auto !important;
+                box-shadow: none !important;
+                border: none !important;
+                background: white !important;
+                page-break-after: avoid !important;
+                page-break-inside: avoid !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-slate-50 text-slate-800">
+
+    <!-- Navigation Bar Header -->
+    <header class="bg-indigo-950 text-white shadow-md sticky top-0 z-30 no-print">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchView('register')">
+                <div class="bg-indigo-600 p-2 rounded-xl shadow-inner text-white">
+                    <!-- Dance / Rhythm Icon -->
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12 0c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-tight">Presenças</h1>
+                    <p class="text-xs text-indigo-300">Aulas</p>
+                </div>
+            </div>
+
+            <!-- View Switching Tabs -->
+            <nav class="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm font-medium">
+                <button id="nav-btn-register" onclick="switchView('register')" class="px-3 py-1.5 rounded-lg transition-colors bg-indigo-600 text-white font-semibold">
+                    Aluno
+                </button>
+                <button id="nav-btn-admin" onclick="switchView('admin')" class="px-3 py-1.5 rounded-lg transition-colors text-indigo-200 hover:text-white hover:bg-indigo-800/60">
+                    Admin
+                </button>
+                <button id="nav-btn-poster" onclick="switchView('poster')" class="px-3 py-1.5 rounded-lg transition-colors text-indigo-200 hover:text-white hover:bg-indigo-800/60">
+                    Cartaz QR
+                </button>
+                <button id="nav-btn-setup" onclick="switchView('setup')" class="px-3 py-1.5 rounded-lg transition-colors text-indigo-200 hover:text-white hover:bg-indigo-800/60 flex items-center gap-1">
+                    <span>Guia Apps Script</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Global Toast Notification Banner -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full px-4 pointer-events-none no-print"></div>
+
+    <!-- MAIN CONTENT CONTAINERS -->
+    <main class="flex-grow max-w-5xl w-full mx-auto p-4 sm:p-6">
+
+        <!-- VIEW 1: REGISTAR PRESENÇA (PUBLIC FOR STUDENTS) -->
+        <section id="view-register" class="max-w-md mx-auto my-4">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+                <!-- Header Banner -->
+                <div class="bg-gradient-to-br from-indigo-900 via-indigo-800 to-indigo-950 p-6 text-center text-white relative">
+                    <div class="inline-flex p-3 bg-white/10 rounded-2xl backdrop-blur-sm mb-3 dance-icon-animated">
+                        <svg class="w-10 h-10 text-indigo-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold">Registar presença</h2>
+                    <p class="text-xs sm:text-sm text-indigo-200 mt-1">Preencha os seus dados para confirmar a presença na aula.</p>
+                </div>
+
+                <!-- Registration Form -->
+                <form id="attendance-form" onsubmit="handleAttendanceSubmit(event)" class="p-6 space-y-5" novalidate>
+                    
+                    <!-- Feedback Alert Message Area -->
+                    <div id="form-alert" class="hidden p-4 rounded-xl text-sm font-medium transition-all"></div>
+
+                    <!-- Input: Nome do Aluno -->
+                    <div>
+                        <label for="student-name" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Nome do aluno <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                id="student-name" 
+                                maxlength="100" 
+                                required
+                                placeholder="Ex: Maria João Silva"
+                                class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 outline-none transition text-slate-900 text-base placeholder-slate-400"
+                            />
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1 flex justify-between">
+                            <span>Escreva o seu nome completo</span>
+                            <span id="student-name-counter">0/100</span>
+                        </p>
+                    </div>
+
+                    <!-- Input: Nome da Aula -->
+                    <div>
+                        <label for="class-name" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Nome da aula <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                id="class-name" 
+                                maxlength="100" 
+                                required
+                                placeholder="Ex: Salsa Avançado, Hip Hop Initiates"
+                                class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 outline-none transition text-slate-900 text-base placeholder-slate-400"
+                            />
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1 flex justify-between">
+                            <span>Escreva a modalidade ou turma</span>
+                            <span id="class-name-counter">0/100</span>
+                        </p>
+                    </div>
+
+                    <!-- Input: Dia da Aula (Apenas leitura) -->
+                    <div>
+                        <label for="class-date" class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Dia da aula
+                        </label>
+                        <div class="relative bg-slate-100 rounded-xl">
+                            <input 
+                                type="text" 
+                                id="class-date" 
+                                readonly 
+                                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-100 text-slate-600 font-semibold outline-none cursor-not-allowed text-base"
+                            />
+                            <div class="absolute right-3 top-3 text-slate-400 pointer-events-none">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Preenchido automaticamente com a data de hoje.</p>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="pt-2 space-y-3">
+                        <button 
+                            type="submit" 
+                            id="btn-submit-attendance"
+                            class="w-full py-4 px-6 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-lg rounded-xl shadow-lg shadow-indigo-200 transition duration-150 transform active:scale-[0.99] flex items-center justify-center gap-2"
+                        >
+                            <span id="btn-submit-text">Confirmar presença</span>
+                            <div id="btn-submit-spinner" class="hidden">
+                                <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                        </button>
+
+                        <button 
+                            type="button" 
+                            onclick="resetFormFields()" 
+                            class="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium text-sm rounded-xl transition"
+                        >
+                            Limpar formulário
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- VIEW 2: PAINEL DE ADMINISTRAÇÃO (/ADMIN) -->
+        <section id="view-admin" class="hidden space-y-6">
+            
+            <!-- Admin Password Authentication Screen (If not logged in) -->
+            <div id="admin-auth-card" class="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-slate-100 text-center space-y-4">
+                <div class="inline-flex p-3 bg-indigo-100 rounded-full text-indigo-700 mb-1">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold text-slate-800">Painel de Administração</h2>
+                <p class="text-xs text-slate-500">Introduza a palavra-passe para aceder às presenças da escola.</p>
+                
+                <form onsubmit="handleAdminLogin(event)" class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Palavra-passe</label>
+                        <input 
+                            type="password" 
+                            id="admin-password-input" 
+                            required
+                            placeholder="Introduza a palavra-passe"
+                            class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none"
+                        />
+                    </div>
+                    <button 
+                        type="submit" 
+                        class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition"
+                    >
+                        Entrar no Painel
+                    </button>
+                </form>
+                <p class="text-[11px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                    ℹ️ Nota: A autenticação no cliente é para uso básico inicial. Para máxima segurança, restrinja também o URL do Google Script.
+                </p>
+            </div>
+
+            <!-- Admin Dashboard Content (Shown after login) -->
+            <div id="admin-dashboard-content" class="hidden space-y-6">
+                
+                <!-- Unconfigured Script URL Alert Banner -->
+                <div id="gas-url-warning" class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl text-amber-800 text-sm flex items-start justify-between">
+                    <div class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <div>
+                            <span class="font-bold">Aviso de Configuração:</span> Configure o URL do Google Apps Script no início do ficheiro antes de utilizar a aplicação em produção. Atualmente a aplicação está em modo de testes locais.
+                        </div>
+                    </div>
+                    <button onclick="switchView('setup')" class="underline font-bold text-amber-900 ml-2 whitespace-nowrap">Ver Guia</button>
+                </div>
+
+                <!-- Admin Header & Actions Bar -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-2xl font-bold text-slate-800">Painel de Presenças</h2>
+                            <span id="demo-badge" class="hidden px-2.5 py-0.5 text-xs font-bold bg-amber-100 text-amber-800 rounded-full border border-amber-300">Modo Local/Demo</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">Gestão centralizada de registos e exportação para Excel.</p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button 
+                            onclick="fetchAdminData()" 
+                            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition flex items-center gap-1.5"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            <span>Atualizar dados</span>
+                        </button>
+
+                        <button 
+                            onclick="exportToCSV()" 
+                            class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-sm transition flex items-center gap-1.5"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span>Exportar para CSV</span>
+                        </button>
+
+                        <button 
+                            onclick="confirmDeleteAllRecords()" 
+                            class="px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold text-xs rounded-xl transition flex items-center gap-1 ml-auto"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            <span>Limpar Tudo</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Key Metrics Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Presenças de Hoje</p>
+                            <p id="stat-today-count" class="text-3xl font-extrabold text-indigo-600 mt-1">0</p>
+                        </div>
+                        <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Registos</p>
+                            <p id="stat-total-count" class="text-3xl font-extrabold text-slate-800 mt-1">0</p>
+                        </div>
+                        <div class="p-3 bg-slate-100 text-slate-600 rounded-2xl">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Filtrados na Tabela</p>
+                            <p id="stat-filtered-count" class="text-3xl font-extrabold text-emerald-600 mt-1">0</p>
+                        </div>
+                        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters Section -->
+                <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Filtros de Pesquisa</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-600 font-medium mb-1">Pesquisar por Aluno</label>
+                            <input 
+                                type="text" 
+                                id="filter-student" 
+                                oninput="applyTableFilters()" 
+                                placeholder="Nome do aluno..."
+                                class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:border-indigo-500 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-600 font-medium mb-1">Pesquisar por Aula</label>
+                            <input 
+                                type="text" 
+                                id="filter-class" 
+                                oninput="applyTableFilters()" 
+                                placeholder="Nome da aula..."
+                                class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:border-indigo-500 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-600 font-medium mb-1">Filtrar por Data</label>
+                            <input 
+                                type="date" 
+                                id="filter-date" 
+                                onchange="applyTableFilters()" 
+                                class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:border-indigo-500 outline-none"
+                            />
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button onclick="clearTableFilters()" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold underline">
+                            Limpar filtros
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Table of Attendance Records -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider">
+                                    <th class="py-3.5 px-4">Nome do Aluno</th>
+                                    <th class="py-3.5 px-4">Nome da Aula</th>
+                                    <th class="py-3.5 px-4">Dia da Aula</th>
+                                    <th class="py-3.5 px-4">Hora do Registo</th>
+                                    <th class="py-3.5 px-4 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-table-body" class="divide-y divide-slate-100 text-sm text-slate-700">
+                                <!-- Dynamic rows rendered via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="table-empty-state" class="hidden p-8 text-center text-slate-400">
+                        Nenhum registo de presença encontrado.
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- VIEW 3: GERAR QR CODE E CARTAZ A4 -->
+        <section id="view-poster" class="hidden space-y-6">
+            
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print space-y-4">
+                <h2 class="text-2xl font-bold text-slate-800">Gerar QR Code e Cartaz</h2>
+                <p class="text-sm text-slate-600">
+                    O QR Code encaminha os alunos diretamente para a página de registo de presença. Pode descarregar a imagem em PNG ou imprimir o cartaz A4 pronto a afixar na sala de dança.
+                </p>
+
+                <!-- Warning banner for local file URL -->
+                <div id="local-file-warning" class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl text-amber-800 text-sm space-y-2">
+                    <div class="flex items-start gap-2.5 font-bold">
+                        <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <span>Atenção: A aplicação está a ser executada localmente no computador (<code class="bg-amber-100 px-1 rounded">file://</code>)</span>
+                    </div>
+                    <p class="text-xs leading-relaxed">
+                        Os telemóveis dos alunos não conseguem abrir ficheiros guardados no disco do seu computador. Para gerar um QR Code funcional:
+                    </p>
+                    <ol class="list-decimal list-inside text-xs space-y-1 font-medium pl-1">
+                        <li>Publicar o ficheiro <code class="bg-amber-100 px-1 rounded">index.html</code> gratuitamente no <strong>Netlify Drop</strong> (<a href="https://app.netlify.com/drop" target="_blank" class="underline text-indigo-700 font-bold">app.netlify.com/drop</a>) ou <strong>GitHub Pages</strong>.</li>
+                        <li>Ou colar manualmente o link do seu site público no campo de endereço abaixo.</li>
+                    </ol>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-end gap-3 pt-2">
+                    <div class="flex-grow w-full">
+                        <label for="app-url-input" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                            URL Público da Aplicação
+                        </label>
+                        <input 
+                            type="text" 
+                            id="app-url-input" 
+                            oninput="updatePosterQRCode()" 
+                            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-600"
+                        />
+                    </div>
+                    <button 
+                        onclick="useCurrentLocationURL()" 
+                        class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition whitespace-nowrap"
+                    >
+                        Usar URL Atual
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap gap-3 pt-2">
+                    <button 
+                        onclick="downloadQRCodePNG()" 
+                        class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow transition flex items-center gap-2"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        <span>Descarregar QR Code em PNG</span>
+                    </button>
+
+                    <button 
+                        onclick="printPoster()" 
+                        class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm rounded-xl shadow transition flex items-center gap-2"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                        </svg>
+                        <span>Imprimir cartaz</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PRINTABLE A4 POSTER CONTAINER -->
+            <div id="poster-print-area" class="bg-white p-8 sm:p-12 rounded-2xl shadow-xl border border-slate-200 max-w-2xl mx-auto text-center flex flex-col items-center justify-between space-y-8 my-4">
+                
+                <!-- Poster Header -->
+                <div class="space-y-3 w-full border-b-2 border-indigo-900 pb-6">
+                    <div class="inline-flex p-3 bg-indigo-950 text-white rounded-2xl mb-1">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12 0c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl sm:text-4xl font-extrabold text-indigo-950 tracking-wider uppercase">
+                        REGISTO DE PRESENÇA
+                    </h1>
+                    <p class="text-slate-600 font-medium text-base sm:text-lg">
+                        Presenças – Aulas
+                    </p>
+                </div>
+
+                <!-- Big Central QR Code Box -->
+                <div class="p-6 bg-slate-50 border-4 border-indigo-600 rounded-3xl shadow-inner my-4 inline-block">
+                    <div id="qrcode-canvas" class="flex justify-center items-center"></div>
+                </div>
+
+                <!-- Poster Instructions for Students -->
+                <div class="space-y-4 max-w-lg">
+                    <div class="flex items-center gap-3 bg-indigo-50 p-4 rounded-2xl text-left border border-indigo-100">
+                        <span class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center flex-shrink-0">1</span>
+                        <p class="text-indigo-950 font-bold text-base sm:text-lg">
+                            Leia o QR Code com a câmara do telemóvel.
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-3 bg-indigo-50 p-4 rounded-2xl text-left border border-indigo-100">
+                        <span class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center flex-shrink-0">2</span>
+                        <p class="text-indigo-950 font-bold text-base sm:text-lg">
+                            Preencha o seu nome e o nome da aula para registar a presença.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="pt-6 border-t border-slate-200 w-full text-slate-400 text-xs uppercase tracking-widest font-semibold">
+                    Aulas • Registo Digital Sem Papel
+                </div>
+            </div>
+
+        </section>
+
+        <!-- VIEW 4: GUIA DE CONFIGURAÇÃO DO GOOGLE APPS SCRIPT -->
+        <section id="view-setup" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Código do Google Apps Script & Configuração</h2>
+                    <p class="text-sm text-slate-600 mt-1">
+                        Siga este guia simples para associar a sua aplicação a um Google Sheets gratuito que servirá de base de dados central.
+                    </p>
+                </div>
+
+                <!-- Copy Code Section -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Ficheiro: google-apps-script.gs</span>
+                        <button 
+                            onclick="copyGASCodeToClipboard()" 
+                            class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            <span id="copy-code-btn-text">Copiar Código Script</span>
+                        </button>
+                    </div>
+                    <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs overflow-x-auto max-h-96 font-mono leading-relaxed" id="gas-code-block"></pre>
+                </div>
+
+                <!-- Step by step instructions in PT-PT -->
+                <div class="space-y-4 pt-4 border-t border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-800">Passos de Configuração (1 a 18)</h3>
+                    <ol class="list-decimal list-inside space-y-2.5 text-sm text-slate-700 font-medium">
+                        <li>Crie um <strong>Google Sheets</strong> novo em <a href="https://sheets.new" target="_blank" class="text-indigo-600 underline">sheets.new</a>.</li>
+                        <li>Copie o ID do Google Sheets a partir do URL (é a sequência entre <code class="bg-slate-100 px-1 rounded text-xs">/d/</code> e <code class="bg-slate-100 px-1 rounded text-xs">/edit</code>).</li>
+                        <li>No Google Sheets, abra <strong>Extensões > Apps Script</strong>.</li>
+                        <li>Apague todo o código existente e cole o código fornecido na caixa acima.</li>
+                        <li>Substitua a variável <code class="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-indigo-700">SPREADSHEET_ID</code> pelo ID que copiou no Passo 2.</li>
+                        <li>Guarde o projeto clicando no ícone do disco (Guardar).</li>
+                        <li>Selecione a função <code class="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-800">criarGatilhoLimpezaDiaria</code> no menu superior e clique em <strong>Executar</strong>.</li>
+                        <li>Autorize as permissões pedidas pela Google (clique em "Avançado" > "Aceder a Presenças (não seguro)").</li>
+                        <li>Clique no botão azul <strong>Implementar > Nova implementação</strong>.</li>
+                        <li>Escolha o tipo de implementação <strong>Aplicação Web</strong>.</li>
+                        <li>Defina em "Executar como": <strong>Eu</strong>.</li>
+                        <li>Defina em "Quem tem acesso": <strong>Qualquer pessoa</strong>.</li>
+                        <li>Clique em <strong>Implementar</strong> e copie o <strong>URL da aplicação web</strong>.</li>
+                        <li>No início do ficheiro <code class="bg-slate-100 px-1 rounded">index.html</code> (na variável <code class="bg-slate-100 px-1 rounded text-indigo-700">CONFIG.APPS_SCRIPT_URL</code>), cole este URL.</li>
+                        <li>Publique ou abra a aplicação web num navegador.</li>
+                        <li>Abra a página pública do aluno, preencha a presença de teste e confirme que surgiu a nova linha na folha do Google Sheets.</li>
+                        <li>Aceda à secção "Cartaz QR", descarregue e imprima o cartaz de presença para afixar na sala.</li>
+                        <li>Testa com dois telemóveis diferentes para verificar a prevenção de duplicados e confirma que a limpeza automática de 30 dias está ativa pelo gatilho diário.</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 no-print">
+        <p>© Presenças – Aulas • Registo Simples e Gratuito</p>
+    </footer>
+
+    <!-- Delete Single Record Confirmation Modal -->
+    <div id="modal-delete" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl border border-slate-100">
+            <h3 class="text-lg font-bold text-slate-900">Apagar Presença?</h3>
+            <p id="modal-delete-text" class="text-sm text-slate-600"></p>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('modal-delete')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition">
+                    Cancelar
+                </button>
+                <button id="modal-delete-confirm-btn" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow transition">
+                    Apagar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete All Records Confirmation Modal -->
+    <div id="modal-delete-all" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl border border-slate-100">
+            <div class="flex items-center gap-3 text-rose-600">
+                <div class="p-2 bg-rose-100 rounded-full">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900">Atenção: Apagar Todos os Registos!</h3>
+            </div>
+            <p class="text-sm text-slate-600">
+                Esta ação vai eliminar permanentemente todas as presenças guardadas na folha Google Sheets. Esta ação não pode ser desfeita.
+            </p>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('modal-delete-all')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition">
+                    Cancelar
+                </button>
+                <button onclick="executeDeleteAllRecords()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow transition">
+                    Sim, apagar tudo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        /* ==========================================================================
+           CONFIGURAÇÃO DA APLICAÇÃO
+           ========================================================================== */
+        const CONFIG = {
+            // Cole aqui o URL do Web App gerado no Google Apps Script (Implementar > Aplicação Web)
+            APPS_SCRIPT_URL: "COLOCAR_AQUI_O_URL_DO_WEB_APP_DO_GOOGLE_APPS_SCRIPT",
+            
+            // Palavra-passe simples de acesso ao Painel de Administração
+            ADMIN_PASSWORD: "ALTERAR_ESTA_PASSWORD"
+        };
+
+        /* CÓDIGO FONTE COMPLETO DO GOOGLE APPS SCRIPT PARA O GUIA DE CONFIGURAÇÃO */
+        const GOOGLE_APPS_SCRIPT_CODE = `/**
+ * Presenças – Aulas
+ * Código Backend em Google Apps Script (GAS)
+ * Servidor de dados gratuito e integrado com Google Sheets
+ */
+
+const SPREADSHEET_ID = "COLOCAR_AQUI_O_ID_DO_GOOGLE_SHEETS";
+const SHEET_NAME = "Presenças";
+
+// Garante que a folha "Presenças" existe e possui os cabeçalhos corretos
+function getOrCreateSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+  }
+  // Verificar e criar cabeçalhos se a folha estiver vazia
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow([
+      "ID",
+      "Nome do aluno",
+      "Nome da aula",
+      "Dia da aula",
+      "Data e hora do registo"
+    ]);
+    sheet.getRange("1:1").setFontWeight("bold").setBackground("#ede9fe");
+  }
+  return sheet;
+}
+
+// Trata pedidos HTTP GET (Listar dados, Estatísticas e Verificar Duplicados)
+function doGet(e) {
+  try {
+    const action = e.parameter.action || 'list';
+    const sheet = getOrCreateSheet();
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    let responseData = {};
+
+    if (action === 'checkDuplicate') {
+      const student = normalizeString(e.parameter.student || '');
+      const className = normalizeString(e.parameter.className || '');
+      const classDate = (e.parameter.classDate || '').trim();
+
+      const isDuplicate = rows.some(row => {
+        const rowStudent = normalizeString(row[1] || '');
+        const rowClass = normalizeString(row[2] || '');
+        const rowDate = String(row[3] || '').trim();
+        return rowStudent === student && rowClass === className && rowDate === classDate;
+      });
+
+      responseData = { success: true, isDuplicate: isDuplicate };
+    } 
+    else if (action === 'stats') {
+      const todayStr = getTodayFormattedString();
+      const todayCount = rows.filter(row => String(row[3]).trim() === todayStr).length;
+      responseData = {
+        success: true,
+        todayCount: todayCount,
+        totalCount: rows.length
+      };
+    } 
+    else {
+      // Listar todos os registos
+      const records = rows.map(row => ({
+        id: String(row[0]),
+        studentName: String(row[1]),
+        className: String(row[2]),
+        classDate: String(row[3]),
+        timestamp: row[4] instanceof Date ? row[4].toISOString() : String(row[4])
+      }));
+
+      responseData = { success: true, data: records };
+    }
+
+    return createJsonResponse(responseData);
+  } catch (error) {
+    return createJsonResponse({ success: false, error: error.toString() });
+  }
+}
+
+// Trata pedidos HTTP POST (Adicionar presença, Apagar registo por ID, Apagar tudo)
+function doPost(e) {
+  try {
+    const contents = JSON.parse(e.postData.contents || '{}');
+    const action = contents.action || 'add';
+    const sheet = getOrCreateSheet();
+
+    if (action === 'add') {
+      let rawStudent = (contents.studentName || '').trim();
+      let rawClass = (contents.className || '').trim();
+      let classDate = (contents.classDate || getTodayFormattedString()).trim();
+
+      // Validações no Servidor
+      if (!rawStudent || !rawClass) {
+        return createJsonResponse({ success: false, error: 'O nome do aluno e o nome da aula são obrigatórios.' });
+      }
+
+      if (rawStudent.length > 100 || rawClass.length > 100) {
+        return createJsonResponse({ success: false, error: 'Os campos não podem ter mais de 100 caracteres.' });
+      }
+
+      const formattedStudent = capitalizeTitleCase(rawStudent);
+      const formattedClass = capitalizeTitleCase(rawClass);
+
+      const normStudent = normalizeString(formattedStudent);
+      const normClass = normalizeString(formattedClass);
+
+      // Verificação de duplicados no servidor
+      const data = sheet.getDataRange().getValues();
+      const rows = data.slice(1);
+      
+      const duplicateExists = rows.some(row => {
+        const rowStudent = normalizeString(row[1] || '');
+        const rowClass = normalizeString(row[2] || '');
+        const rowDate = String(row[3] || '').trim();
+        return rowStudent === normStudent && rowClass === normClass && rowDate === classDate;
+      });
+
+      if (duplicateExists) {
+        return createJsonResponse({ 
+          success: false, 
+          duplicate: true, 
+          error: 'Já existe uma presença registada com este nome para esta aula hoje.' 
+        });
+      }
+
+      // Criar ID único e registar
+      const id = 'REG_' + new Date().getTime() + '_' + Math.floor(Math.random() * 1000);
+      const exactTimestamp = new Date();
+
+      sheet.appendRow([
+        id,
+        formattedStudent,
+        formattedClass,
+        classDate,
+        exactTimestamp
+      ]);
+
+      return createJsonResponse({ 
+        success: true, 
+        message: 'Presença registada com sucesso. Obrigado/a e boa aula!',
+        id: id 
+      });
+    }
+
+    if (action === 'delete') {
+      const recordId = contents.id;
+      if (!recordId) {
+        return createJsonResponse({ success: false, error: 'ID do registo não especificado.' });
+      }
+
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][0]) === String(recordId)) {
+          sheet.deleteRow(i + 1); // +1 por causa da linha de cabeçalho (1-based)
+          return createJsonResponse({ success: true, message: 'Registo eliminado com sucesso.' });
+        }
+      }
+      return createJsonResponse({ success: false, error: 'Registo não encontrado.' });
+    }
+
+    if (action === 'deleteAll') {
+      const lastRow = sheet.getLastRow();
+      if (lastRow > 1) {
+        sheet.deleteRows(2, lastRow - 1);
+      }
+      return createJsonResponse({ success: true, message: 'Todos os registos foram eliminados.' });
+    }
+
+    return createJsonResponse({ success: false, error: 'Ação inválida.' });
+  } catch (error) {
+    return createJsonResponse({ success: false, error: error.toString() });
+  }
+}
+
+// Função auxiliar para respostas em JSON com CORS
+function createJsonResponse(data) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Normalização de texto: minúsculas e espaços colapsados
+function normalizeString(str) {
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .replace(/\\s+/g, ' ');
+}
+
+// Capitalização de primeira letra de cada palavra para apresentação
+function capitalizeTitleCase(str) {
+  return String(str)
+    .trim()
+    .replace(/\\s+/g, ' ')
+    .replace(/\\b\\w/g, function(l) { return l.toUpperCase(); });
+}
+
+// Obter a data atual formatada DD/MM/AAAA
+function getTodayFormattedString() {
+  const d = new Date();
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return day + '/' + month + '/' + year;
+}
+
+/**
+ * LIMPEZA AUTOMÁTICA APÓS 30 DIAS
+ */
+
+// Elimina linhas com mais de 30 dias com base na Coluna E (Data/Hora)
+function apagarPresencasComMaisDe30Dias() {
+  const sheet = getOrCreateSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return;
+
+  const data = sheet.getDataRange().getValues();
+  const now = new Date().getTime();
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+  // Percorrer de baixo para cima para apagar com segurança
+  for (let i = data.length - 1; i >= 1; i--) {
+    const rawDate = data[i][4];
+    if (!rawDate) continue;
+
+    let rowDate = new Date(rawDate);
+    if (isNaN(rowDate.getTime())) continue;
+
+    if (now - rowDate.getTime() > THIRTY_DAYS_MS) {
+      sheet.deleteRow(i + 1);
+    }
+  }
+}
+
+// Cria um gatilho diário automático para correr a limpeza
+function criarGatilhoLimpezaDiaria() {
+  // Apaga gatilhos antigos para não duplicar
+  const triggers = ScriptApp.getProjectTriggers();
+  for (let i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'apagarPresencasComMaisDe30Dias') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+
+  // Cria novo gatilho diário
+  ScriptApp.newTrigger('apagarPresencasComMaisDe30Dias')
+    .timeBased()
+    .everyDays(1)
+    .atHour(2) // Executa por volta das 02:00 da manhã
+    .create();
+
+  Logger.log('Gatilho de limpeza diária criado com sucesso!');
+}
+
+// Função de teste para execução manual imediata
+function executarLimpezaAgora() {
+  apagarPresencasComMaisDe30Dias();
+}
+`;
+
+        /* ==========================================================================
+           ESTADO DA APLICAÇÃO
+           ========================================================================== */
+        let state = {
+            currentView: 'register',
+            isAdminAuthenticated: false,
+            records: [],
+            filteredRecords: [],
+            pendingDeleteId: null,
+            isSubmitting: false,
+            // Registos locais em memória para demonstração imediata caso APPS_SCRIPT_URL não esteja configurado
+            mockRecords: [
+                { id: "REG_101", studentName: "Ana Rita Santos", className: "Salsa Iniciação", classDate: getTodayFormatted(), timestamp: new Date().toISOString() },
+                { id: "REG_102", studentName: "Carlos Alberto", className: "Bachata Sensual", classDate: getTodayFormatted(), timestamp: new Date().toISOString() },
+                { id: "REG_103", studentName: "Mariana Costa", className: "Hip Hop Initiates", classDate: getTodayFormatted(), timestamp: new Date().toISOString() }
+            ]
+        };
+
+        let qrCodeInstance = null;
+
+        /* ==========================================================================
+           INICIALIZAÇÃO AO CARREGAR A PÁGINA
+           ========================================================================== */
+        window.onload = function() {
+            // Preencher data de hoje no campo de leitura
+            const todayStr = getTodayFormatted();
+            document.getElementById('class-date').value = todayStr;
+
+            // Preencher o bloco de código GAS para cópia fácil
+            document.getElementById('gas-code-block').innerText = GOOGLE_APPS_SCRIPT_CODE;
+
+            // Definir o URL do QR Code
+            document.getElementById('app-url-input').value = window.location.href;
+
+            // Adicionar escutadores para contagem de caracteres
+            setupCharacterCounters();
+
+            // Verificar se o URL do Apps Script é padrão
+            if (isScriptURLConfigured()) {
+                document.getElementById('gas-url-warning').classList.add('hidden');
+                document.getElementById('demo-badge').classList.add('hidden');
+            } else {
+                document.getElementById('gas-url-warning').classList.remove('hidden');
+                document.getElementById('demo-badge').classList.remove('hidden');
+            }
+
+            // Renderizar QR Code inicial
+            updatePosterQRCode();
+        };
+
+        /* ==========================================================================
+           FUNÇÕES AUXILIARES E DE UTILIDADE
+           ========================================================================== */
+        function isScriptURLConfigured() {
+            return CONFIG.APPS_SCRIPT_URL && 
+                   CONFIG.APPS_SCRIPT_URL !== "COLOCAR_AQUI_O_URL_DO_WEB_APP_DO_GOOGLE_APPS_SCRIPT" &&
+                   CONFIG.APPS_SCRIPT_URL.startsWith("https://script.google.com");
+        }
+
+        function getTodayFormatted() {
+            const d = new Date();
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        function normalizeString(str) {
+            return String(str || '')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, ' ');
+        }
+
+        function capitalizeTitleCase(str) {
+            return String(str || '')
+                .trim()
+                .replace(/\s+/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function setupCharacterCounters() {
+            const studentInput = document.getElementById('student-name');
+            const classInput = document.getElementById('class-name');
+
+            studentInput.addEventListener('input', () => {
+                document.getElementById('student-name-counter').innerText = `${studentInput.value.length}/100`;
+            });
+
+            classInput.addEventListener('input', () => {
+                document.getElementById('class-name-counter').innerText = `${classInput.value.length}/100`;
+            });
+        }
+
+        /* ==========================================================================
+           NAVEGAÇÃO E NAVEGAÇÃO DE VISTAS
+           ========================================================================== */
+        function switchView(viewName) {
+            state.currentView = viewName;
+
+            // Esconder todas as secções
+            ['register', 'admin', 'poster', 'setup'].forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                const navBtn = document.getElementById(`nav-btn-${v}`);
+                if (navBtn) {
+                    navBtn.className = "px-3 py-1.5 rounded-lg transition-colors text-indigo-200 hover:text-white hover:bg-indigo-800/60";
+                }
+            });
+
+            // Mostrar vista ativa
+            document.getElementById(`view-${viewName}`).classList.remove('hidden');
+            const activeNavBtn = document.getElementById(`nav-btn-${viewName}`);
+            if (activeNavBtn) {
+                activeNavBtn.className = "px-3 py-1.5 rounded-lg transition-colors bg-indigo-600 text-white font-semibold";
+            }
+
+            // Ações específicas de entrada em vistas
+            if (viewName === 'admin' && state.isAdminAuthenticated) {
+                fetchAdminData();
+            } else if (viewName === 'poster') {
+                setTimeout(updatePosterQRCode, 100);
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-slate-800 text-white";
+            if (type === 'success') bgClass = "bg-emerald-600 text-white";
+            if (type === 'error') bgClass = "bg-rose-600 text-white";
+
+            toast.className = `${bgClass} p-4 rounded-xl shadow-xl text-sm font-semibold pointer-events-auto flex items-center justify-between gap-3 transition-all transform translate-y-2 opacity-0`;
+            toast.innerHTML = `
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" class="text-white/80 hover:text-white font-bold text-base">&times;</button>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function showFormAlert(message, type = 'error') {
+            const alertBox = document.getElementById('form-alert');
+            alertBox.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'border-emerald-200', 'bg-rose-50', 'text-rose-800', 'border-rose-200', 'bg-amber-50', 'text-amber-800', 'border-amber-200');
+
+            if (type === 'success') {
+                alertBox.classList.add('bg-emerald-50', 'text-emerald-800', 'border', 'border-emerald-200');
+            } else if (type === 'error') {
+                alertBox.classList.add('bg-rose-50', 'text-rose-800', 'border', 'border-rose-200');
+            } else {
+                alertBox.classList.add('bg-amber-50', 'text-amber-800', 'border', 'border-amber-200');
+            }
+
+            alertBox.innerText = message;
+        }
+
+        function hideFormAlert() {
+            document.getElementById('form-alert').classList.add('hidden');
+        }
+
+        /* ==========================================================================
+           REGISTO DE PRESENÇA DO ALUNO (SUBMISSÃO)
+           ========================================================================== */
+        async function handleAttendanceSubmit(event) {
+            event.preventDefault();
+            hideFormAlert();
+
+            if (state.isSubmitting) return;
+
+            const studentNameInput = document.getElementById('student-name');
+            const classNameInput = document.getElementById('class-name');
+            const classDate = document.getElementById('class-date').value;
+
+            // Sanitize & Trim inputs
+            let rawStudent = studentNameInput.value.trim().replace(/\s+/g, ' ');
+            let rawClass = classNameInput.value.trim().replace(/\s+/g, ' ');
+
+            // Validações no Lado do Cliente
+            if (!rawStudent || !rawClass) {
+                showFormAlert("Por favor, preencha o nome do aluno e o nome da aula.", "error");
+                return;
+            }
+
+            if (rawStudent.length > 100 || rawClass.length > 100) {
+                showFormAlert("O nome do aluno e o nome da aula não podem exceder 100 caracteres.", "error");
+                return;
+            }
+
+            // Normalização para Apresentação
+            const formattedStudent = capitalizeTitleCase(rawStudent);
+            const formattedClass = capitalizeTitleCase(rawClass);
+
+            // Iniciar Estado de Carregamento
+            setSubmitLoadingState(true);
+
+            // Verificar Ligação à Internet
+            if (!navigator.onLine) {
+                showFormAlert("Sem ligação à internet. Verifique a sua rede e tente novamente.", "error");
+                setSubmitLoadingState(false);
+                return;
+            }
+
+            try {
+                // Caso o URL do Apps Script esteja configurado
+                if (isScriptURLConfigured()) {
+
+                    // 1. Verificar duplicados no servidor primeiro
+                    const dupCheckUrl = `${CONFIG.APPS_SCRIPT_URL}?action=checkDuplicate&student=${encodeURIComponent(formattedStudent)}&className=${encodeURIComponent(formattedClass)}&classDate=${encodeURIComponent(classDate)}`;
+                    
+                    const dupResponse = await fetch(dupCheckUrl);
+                    const dupResult = await dupResponse.json();
+
+                    if (dupResult.success && dupResult.isDuplicate) {
+                        showFormAlert("Já existe uma presença registada com este nome para esta aula hoje.", "error");
+                        setSubmitLoadingState(false);
+                        return;
+                    }
+
+                    // 2. Enviar pedido POST de adição
+                    const payload = {
+                        action: 'add',
+                        studentName: formattedStudent,
+                        className: formattedClass,
+                        classDate: classDate
+                    };
+
+                    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        showFormAlert("Presença registada com sucesso. Obrigado/a e boa aula!", "success");
+                        
+                        // Limpar campos após alguns segundos
+                        setTimeout(() => {
+                            studentNameInput.value = '';
+                            classNameInput.value = '';
+                            document.getElementById('student-name-counter').innerText = '0/100';
+                            document.getElementById('class-name-counter').innerText = '0/100';
+                            hideFormAlert();
+                        }, 4000);
+                    } else if (result.duplicate) {
+                        showFormAlert("Já existe uma presença registada com este nome para esta aula hoje.", "error");
+                    } else {
+                        showFormAlert(result.error || "Ocorreu um erro ao registar a presença.", "error");
+                    }
+
+                } else {
+                    // MODO DEMO / LOCAL
+                    const normStudent = normalizeString(formattedStudent);
+                    const normClass = normalizeString(formattedClass);
+
+                    const isDuplicate = state.mockRecords.some(r => 
+                        normalizeString(r.studentName) === normStudent &&
+                        normalizeString(r.className) === normClass &&
+                        r.classDate === classDate
+                    );
+
+                    if (isDuplicate) {
+                        showFormAlert("Já existe uma presença registada com este nome para esta aula hoje.", "error");
+                        setSubmitLoadingState(false);
+                        return;
+                    }
+
+                    // Adicionar ao registo demo
+                    const newRecord = {
+                        id: "REG_" + new Date().getTime(),
+                        studentName: formattedStudent,
+                        className: formattedClass,
+                        classDate: classDate,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    state.mockRecords.unshift(newRecord);
+                    
+                    showFormAlert("Presença registada com sucesso. Obrigado/a e boa aula! (Modo Local)", "success");
+
+                    setTimeout(() => {
+                        studentNameInput.value = '';
+                        classNameInput.value = '';
+                        document.getElementById('student-name-counter').innerText = '0/100';
+                        document.getElementById('class-name-counter').innerText = '0/100';
+                        hideFormAlert();
+                    }, 4000);
+                }
+
+            } catch (err) {
+                console.error("Erro ao enviar presença:", err);
+                showFormAlert("Não foi possível ligar ao servidor. Por favor, verifique a ligação.", "error");
+            } finally {
+                setSubmitLoadingState(false);
+            }
+        }
+
+        function setSubmitLoadingState(isLoading) {
+            state.isSubmitting = isLoading;
+            const btn = document.getElementById('btn-submit-attendance');
+            const btnText = document.getElementById('btn-submit-text');
+            const spinner = document.getElementById('btn-submit-spinner');
+
+            if (isLoading) {
+                btn.disabled = true;
+                btn.classList.add('opacity-75', 'cursor-not-allowed');
+                btnText.innerText = "A guardar...";
+                spinner.classList.remove('hidden');
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                btnText.innerText = "Confirmar presença";
+                spinner.classList.add('hidden');
+            }
+        }
+
+        function resetFormFields() {
+            document.getElementById('student-name').value = '';
+            document.getElementById('class-name').value = '';
+            document.getElementById('student-name-counter').innerText = '0/100';
+            document.getElementById('class-name-counter').innerText = '0/100';
+            hideFormAlert();
+        }
+
+        /* ==========================================================================
+           PAINEL DE ADMINISTRAÇÃO E AUTENTICAÇÃO
+           ========================================================================== */
+        function handleAdminLogin(event) {
+            event.preventDefault();
+            const passwordInput = document.getElementById('admin-password-input').value;
+
+            if (passwordInput === CONFIG.ADMIN_PASSWORD) {
+                state.isAdminAuthenticated = true;
+                document.getElementById('admin-auth-card').classList.add('hidden');
+                document.getElementById('admin-dashboard-content').classList.remove('hidden');
+                fetchAdminData();
+                showToast("Sessão de administração iniciada com sucesso.", "success");
+            } else {
+                showToast("Palavra-passe incorreta.", "error");
+            }
+        }
+
+        async function fetchAdminData() {
+            if (!state.isAdminAuthenticated) return;
+
+            if (isScriptURLConfigured()) {
+                try {
+                    const listUrl = `${CONFIG.APPS_SCRIPT_URL}?action=list`;
+                    const response = await fetch(listUrl);
+                    const result = await response.json();
+
+                    if (result.success) {
+                        state.records = result.data || [];
+                        applyTableFilters();
+                        updateStats();
+                        showToast("Dados atualizados com sucesso.", "success");
+                    } else {
+                        showToast("Erro ao carregar dados: " + result.error, "error");
+                    }
+                } catch (err) {
+                    console.error("Erro de rede ao procurar presenças:", err);
+                    showToast("Erro ao carregar dados do Google Sheets.", "error");
+                }
+            } else {
+                // Utilizar registos mock
+                state.records = [...state.mockRecords];
+                applyTableFilters();
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            const todayStr = getTodayFormatted();
+            const todayCount = state.records.filter(r => r.classDate === todayStr).length;
+
+            document.getElementById('stat-today-count').innerText = todayCount;
+            document.getElementById('stat-total-count').innerText = state.records.length;
+            document.getElementById('stat-filtered-count').innerText = state.filteredRecords.length;
+        }
+
+        function applyTableFilters() {
+            const studentQuery = normalizeString(document.getElementById('filter-student').value);
+            const classQuery = normalizeString(document.getElementById('filter-class').value);
+            const dateQuery = document.getElementById('filter-date').value; // Formato YYYY-MM-DD do input date
+
+            let formattedDateQuery = '';
+            if (dateQuery) {
+                const parts = dateQuery.split('-');
+                if (parts.length === 3) {
+                    formattedDateQuery = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+            }
+
+            state.filteredRecords = state.records.filter(r => {
+                const matchesStudent = !studentQuery || normalizeString(r.studentName).includes(studentQuery);
+                const matchesClass = !classQuery || normalizeString(r.className).includes(classQuery);
+                const matchesDate = !formattedDateQuery || r.classDate === formattedDateQuery;
+
+                return matchesStudent && matchesClass && matchesDate;
+            });
+
+            renderTableRows();
+            updateStats();
+        }
+
+        function clearTableFilters() {
+            document.getElementById('filter-student').value = '';
+            document.getElementById('filter-class').value = '';
+            document.getElementById('filter-date').value = '';
+            applyTableFilters();
+        }
+
+        function renderTableRows() {
+            const tbody = document.getElementById('admin-table-body');
+            const emptyState = document.getElementById('table-empty-state');
+            tbody.innerHTML = '';
+
+            if (state.filteredRecords.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            state.filteredRecords.forEach(record => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+
+                // Formatar hora
+                let timeStr = "";
+                if (record.timestamp) {
+                    try {
+                        const d = new Date(record.timestamp);
+                        timeStr = d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    } catch (e) {
+                        timeStr = String(record.timestamp);
+                    }
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3.5 px-4 font-semibold text-slate-900">${escapeHtml(record.studentName)}</td>
+                    <td class="py-3.5 px-4 text-indigo-700 font-medium">${escapeHtml(record.className)}</td>
+                    <td class="py-3.5 px-4 text-slate-600">${escapeHtml(record.classDate)}</td>
+                    <td class="py-3.5 px-4 text-slate-500 text-xs">${timeStr}</td>
+                    <td class="py-3.5 px-4 text-center">
+                        <button 
+                            onclick="confirmDeleteRecord('${record.id}', '${escapeHtml(record.studentName)}')" 
+                            class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            title="Apagar registo"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        /* ==========================================================================
+           EXPORTAÇÃO PARA CSV (COMPATÍVEL COM EXCEL E UTF-8)
+           ========================================================================== */
+        function exportToCSV() {
+            if (state.filteredRecords.length === 0) {
+                showToast("Não existem registos filtrados para exportar.", "error");
+                return;
+            }
+
+            // Cabeçalhos do CSV
+            let csvContent = "ID;Nome do Aluno;Nome da Aula;Dia da Aula;Hora do Registo\n";
+
+            state.filteredRecords.forEach(row => {
+                let timeStr = "";
+                if (row.timestamp) {
+                    try {
+                        timeStr = new Date(row.timestamp).toLocaleTimeString('pt-PT');
+                    } catch (e) {
+                        timeStr = row.timestamp;
+                    }
+                }
+
+                const line = [
+                    `"${(row.id || '').replace(/"/g, '""')}"`,
+                    `"${(row.studentName || '').replace(/"/g, '""')}"`,
+                    `"${(row.className || '').replace(/"/g, '""')}"`,
+                    `"${(row.classDate || '').replace(/"/g, '""')}"`,
+                    `"${timeStr.replace(/"/g, '""')}"`
+                ].join(";");
+
+                csvContent += line + "\n";
+            });
+
+            // Adicionar UTF-8 BOM para garantir correta abertura no Excel com acentos portugueses
+            const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            const todayIso = new Date().toISOString().split('T')[0];
+            const fileName = `presencas_aulas_${todayIso}.csv`;
+
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast("Ficheiro CSV exportado com sucesso.", "success");
+        }
+
+        /* ==========================================================================
+           ELIMINAÇÃO DE REGISTOS
+           ========================================================================== */
+        function confirmDeleteRecord(id, studentName) {
+            state.pendingDeleteId = id;
+            document.getElementById('modal-delete-text').innerText = `Tem a certeza de que pretende apagar a presença do aluno "${studentName}"?`;
+            
+            const confirmBtn = document.getElementById('modal-delete-confirm-btn');
+            confirmBtn.onclick = () => executeDeleteRecord(id);
+
+            openModal('modal-delete');
+        }
+
+        async function executeDeleteRecord(id) {
+            closeModal('modal-delete');
+
+            if (isScriptURLConfigured()) {
+                try {
+                    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'delete', id: id })
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        showToast("Registo eliminado com sucesso.", "success");
+                        fetchAdminData();
+                    } else {
+                        showToast("Erro ao apagar registo: " + result.error, "error");
+                    }
+                } catch (e) {
+                    showToast("Erro ao apagar registo no Google Sheets.", "error");
+                }
+            } else {
+                // Modo demo
+                state.mockRecords = state.mockRecords.filter(r => r.id !== id);
+                fetchAdminData();
+                showToast("Registo eliminado com sucesso (Modo Local).", "success");
+            }
+        }
+
+        function confirmDeleteAllRecords() {
+            openModal('modal-delete-all');
+        }
+
+        async function executeDeleteAllRecords() {
+            closeModal('modal-delete-all');
+
+            if (isScriptURLConfigured()) {
+                try {
+                    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'deleteAll' })
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        showToast("Todos os registos foram eliminados.", "success");
+                        fetchAdminData();
+                    } else {
+                        showToast("Erro ao apagar tudo: " + result.error, "error");
+                    }
+                } catch (e) {
+                    showToast("Erro de rede ao apagar presenças.", "error");
+                }
+            } else {
+                state.mockRecords = [];
+                fetchAdminData();
+                showToast("Todos os registos locais foram eliminados.", "success");
+            }
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        /* ==========================================================================
+           GERADOR DE QR CODE E CARTAZ A4
+           ========================================================================== */
+        function useCurrentLocationURL() {
+            document.getElementById('app-url-input').value = window.location.href;
+            updatePosterQRCode();
+        }
+
+        function updatePosterQRCode() {
+            const qrContainer = document.getElementById('qrcode-canvas');
+            qrContainer.innerHTML = '';
+
+            const urlInput = document.getElementById('app-url-input');
+            const localWarning = document.getElementById('local-file-warning');
+            const url = urlInput.value.trim() || window.location.href;
+
+            // Deteção e alerta visual caso o URL seja um ficheiro do PC
+            if (url.startsWith('file:') || url.includes('localhost') || url.includes('127.0.0.1')) {
+                if (localWarning) localWarning.classList.remove('hidden');
+            } else {
+                if (localWarning) localWarning.classList.add('hidden');
+            }
+
+            // Criar QR Code com QRCode.js
+            qrCodeInstance = new QRCode(qrContainer, {
+                text: url,
+                width: 220,
+                height: 220,
+                colorDark : "#1e1b4b",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        function downloadQRCodePNG() {
+            const qrCanvas = document.querySelector('#qrcode-canvas canvas');
+            const qrImg = document.querySelector('#qrcode-canvas img');
+
+            let imageURI = '';
+
+            if (qrCanvas) {
+                imageURI = qrCanvas.toDataURL("image/png");
+            } else if (qrImg) {
+                imageURI = qrImg.src;
+            }
+
+            if (!imageURI) {
+                showToast("Erro ao gerar imagem do QR Code.", "error");
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.download = 'qrcode_presencas_aulas.png';
+            link.href = imageURI;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast("QR Code descarregado em PNG.", "success");
+        }
+
+        /* ==========================================================================
+           FUNÇÕES DE IMPRESSÃO DO CARTAZ
+           ========================================================================== */
+        function printPoster() {
+            // Garantir que a vista do cartaz está ativa e o QR Code atualizado
+            if (state.currentView !== 'poster') {
+                switchView('poster');
+            }
+            updatePosterQRCode();
+
+            // Pequeno atraso para garantir renderização do QR Code antes de imprimir
+            setTimeout(() => {
+                try {
+                    window.focus();
+                    window.print();
+                } catch (err) {
+                    console.warn("Falha no window.print() direto. A abrir janela alternativa de impressão...", err);
+                    openPrintWindowFallback();
+                }
+            }, 200);
+        }
+
+        function openPrintWindowFallback() {
+            const posterElement = document.getElementById('poster-print-area');
+            if (!posterElement) return;
+
+            const printWin = window.open('', '_blank', 'width=800,height=900');
+            if (!printWin) {
+                showToast("Por favor, permita janelas pop-up no navegador para imprimir.", "error");
+                return;
+            }
+
+            printWin.document.write(`
+                <!DOCTYPE html>
+                <html lang="pt-PT">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Imprimir Cartaz - Presenças Aulas</title>
+                    <script src="https://cdn.tailwindcss.com"><\/script>
+                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+                    <style>
+                        body { font-family: 'Inter', sans-serif; background: white; margin: 0; padding: 2cm; }
+                        @media print { body { padding: 0; } }
+                    </style>
+                </head>
+                <body class="flex items-center justify-center min-h-screen">
+                    <div class="w-full max-w-2xl text-center">
+                        ${posterElement.outerHTML}
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.focus();
+                                window.print();
+                                window.close();
+                            }, 400);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWin.document.close();
+        }
+
+        /* ==========================================================================
+           CÓPIA DO CÓDIGO GOOGLE APPS SCRIPT
+           ========================================================================== */
+        function copyGASCodeToClipboard() {
+            const codeText = GOOGLE_APPS_SCRIPT_CODE;
+            
+            // Clipboard Copy segura
+            const textarea = document.createElement('textarea');
+            textarea.value = codeText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                document.execCommand('copy');
+                document.getElementById('copy-code-btn-text').innerText = "Copiado!";
+                showToast("Código do Google Apps Script copiado para a área de transferência!", "success");
+                setTimeout(() => {
+                    document.getElementById('copy-code-btn-text').innerText = "Copiar Código Script";
+                }, 3000);
+            } catch (err) {
+                showToast("Erro ao copiar código.", "error");
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+    </script>
+</body>
+</html>
